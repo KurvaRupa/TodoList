@@ -1,9 +1,24 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import bg from "./assets/bg.jpg"
 
 function App() {
+
   const [task, setTask] = useState("")
   const [tasks, setTasks] = useState([])
+
+  // 🔹 Load tasks when app opens
+  useEffect(() => {
+    const saved = localStorage.getItem("myTasks")
+    if (saved) {
+      setTasks(JSON.parse(saved))
+    }
+  }, [])
+
+  // 🔹 Save tasks whenever they change
+  useEffect(() => {
+    localStorage.setItem("myTasks", JSON.stringify(tasks))
+  }, [tasks])
+
 
   const addTask = () => {
     if (!task.trim()) return
@@ -41,20 +56,18 @@ function App() {
           </button>
         </div>
 
-        {/* PENDING TASKS */}
         <h3>📌 Tasks To Do</h3>
-        {pending.length === 0 && <p>No pending tasks 🎉</p>}
         {pending.map((t, i) => (
           <div key={i} style={styles.task}>
-            <input type="checkbox" onChange={() => toggleTask(tasks.indexOf(t))} />
+            <input type="checkbox"
+              onChange={() => toggleTask(tasks.indexOf(t))}
+            />
             <span style={{ flex: 1 }}>{t.text}</span>
             <button onClick={() => deleteTask(tasks.indexOf(t))}>❌</button>
           </div>
         ))}
 
-        {/* COMPLETED TASKS */}
         <h3 style={{ marginTop: "20px" }}>✅ Completed</h3>
-        {completed.length === 0 && <p>No completed tasks yet</p>}
         {completed.map((t, i) => (
           <div key={i} style={styles.taskDone}>
             <span style={{ flex: 1, textDecoration: "line-through" }}>
@@ -70,6 +83,7 @@ function App() {
 
 export default App
 
+
 const styles = {
   page: {
     minHeight: "100vh",
@@ -82,7 +96,6 @@ const styles = {
     alignItems: "center",
     fontFamily: "sans-serif",
   },
-
   card: {
     background: "rgba(255,255,255,0.9)",
     padding: "30px",
@@ -91,20 +104,17 @@ const styles = {
     backdropFilter: "blur(8px)",
     boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
   },
-
   inputBox: {
     display: "flex",
     gap: "10px",
     marginBottom: "20px",
   },
-
   input: {
     flex: 1,
     padding: "10px",
     borderRadius: "10px",
     border: "1px solid #ccc",
   },
-
   addBtn: {
     padding: "10px",
     borderRadius: "10px",
@@ -113,7 +123,6 @@ const styles = {
     color: "white",
     cursor: "pointer",
   },
-
   task: {
     display: "flex",
     alignItems: "center",
@@ -122,7 +131,6 @@ const styles = {
     background: "#f3f3f3",
     borderRadius: "8px",
   },
-
   taskDone: {
     display: "flex",
     alignItems: "center",
