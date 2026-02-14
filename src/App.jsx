@@ -4,76 +4,83 @@ import bg from "./assets/bg.jpg"
 function App() {
 
   const [task, setTask] = useState("")
+  const [date, setDate] = useState("")
   const [tasks, setTasks] = useState([])
 
-  // 🔹 Load tasks when app opens
+  // Load saved tasks
   useEffect(() => {
     const saved = localStorage.getItem("myTasks")
-    if (saved) {
-      setTasks(JSON.parse(saved))
-    }
+    if (saved) setTasks(JSON.parse(saved))
   }, [])
 
-  // 🔹 Save tasks whenever they change
+  // Save tasks
   useEffect(() => {
     localStorage.setItem("myTasks", JSON.stringify(tasks))
   }, [tasks])
 
+  // 🔔 Reminder check
+  useEffect(() => {
+    const today = new Date()
+
+    tasks.forEach(t => {
+      const taskDate = new Date(t.date)
+      const diff = (taskDate - today) / (1000 * 60 * 60 * 24)
+
+      if (diff <= 1 && diff > 0 && !t.done) {
+        alert(`Reminder: "${t.text}" is due tomorrow!`)
+      }
+    })
+  }, [tasks])
 
   const addTask = () => {
-    if (!task.trim()) return
-    setTasks([...tasks, { text: task, done: false }])
+    if (!task || !date) return
+    setTasks([...tasks, { text: task, date, done: false }])
     setTask("")
+    setDate("")
   }
 
-  const toggleTask = (i) => {
+  const toggleTask = i => {
     const newTasks = [...tasks]
     newTasks[i].done = !newTasks[i].done
     setTasks(newTasks)
   }
 
-  const deleteTask = (i) => {
-    setTasks(tasks.filter((_, index) => index !== i))
-  }
-
-  const pending = tasks.filter(t => !t.done)
-  const completed = tasks.filter(t => t.done)
-
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h1>🌸 My Todo List</h1>
+        <h1>📅 Todo with Reminder</h1>
 
-        <div style={styles.inputBox}>
-          <input
-            style={styles.input}
-            placeholder="Add a task..."
-            value={task}
-            onChange={(e) => setTask(e.target.value)}
-          />
-          <button style={styles.addBtn} onClick={addTask}>
-            Add
-          </button>
-        </div>
+        <input
+          style={styles.input}
+          placeholder="Task"
+          value={task}
+          onChange={e => setTask(e.target.value)}
+        />
 
-        <h3>📌 Tasks To Do</h3>
-        {pending.map((t, i) => (
+        <input
+          type="date"
+          style={styles.input}
+          value={date}
+          onChange={e => setDate(e.target.value)}
+        />
+
+        <button style={styles.addBtn} onClick={addTask}>
+          Add Task
+        </button>
+
+        <h3>Tasks</h3>
+        {tasks.map((t, i) => (
           <div key={i} style={styles.task}>
-            <input type="checkbox"
-              onChange={() => toggleTask(tasks.indexOf(t))}
+            <input
+              type="checkbox"
+              checked={t.done}
+              onChange={() => toggleTask(i)}
             />
-            <span style={{ flex: 1 }}>{t.text}</span>
-            <button onClick={() => deleteTask(tasks.indexOf(t))}>❌</button>
-          </div>
-        ))}
-
-        <h3 style={{ marginTop: "20px" }}>✅ Completed</h3>
-        {completed.map((t, i) => (
-          <div key={i} style={styles.taskDone}>
-            <span style={{ flex: 1, textDecoration: "line-through" }}>
-              {t.text}
+            <span style={{
+              textDecoration: t.done ? "line-through" : "none"
+            }}>
+              {t.text} ({t.date})
             </span>
-            <button onClick={() => deleteTask(tasks.indexOf(t))}>❌</button>
           </div>
         ))}
       </div>
@@ -83,60 +90,34 @@ function App() {
 
 export default App
 
-
 const styles = {
   page: {
     minHeight: "100vh",
-    width: "100vw",
     backgroundImage: `url(${bg})`,
     backgroundSize: "cover",
-    backgroundPosition: "center",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    fontFamily: "sans-serif",
   },
   card: {
     background: "rgba(255,255,255,0.9)",
     padding: "30px",
     borderRadius: "20px",
-    width: "380px",
-    backdropFilter: "blur(8px)",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
-  },
-  inputBox: {
-    display: "flex",
-    gap: "10px",
-    marginBottom: "20px",
+    width: "350px",
   },
   input: {
-    flex: 1,
+    width: "100%",
     padding: "10px",
-    borderRadius: "10px",
-    border: "1px solid #ccc",
+    marginBottom: "10px",
   },
   addBtn: {
     padding: "10px",
-    borderRadius: "10px",
-    border: "none",
+    width: "100%",
     background: "#ff6b81",
     color: "white",
-    cursor: "pointer",
+    border: "none",
   },
   task: {
-    display: "flex",
-    alignItems: "center",
-    marginBottom: "10px",
-    padding: "8px",
-    background: "#f3f3f3",
-    borderRadius: "8px",
-  },
-  taskDone: {
-    display: "flex",
-    alignItems: "center",
-    marginBottom: "10px",
-    padding: "8px",
-    background: "#dff0d8",
-    borderRadius: "8px",
+    marginTop: "10px",
   },
 }
