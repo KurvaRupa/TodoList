@@ -1,172 +1,204 @@
 import { useState, useEffect } from "react"
+import { PieChart, Pie, Cell, Tooltip } from "recharts"
 import bg from "./assets/bg.jpg"
+import "./App.css"
 
-function App() {
+function App(){
 
-  const [task, setTask] = useState("")
-  const [datetime, setDatetime] = useState("")
-  const [tasks, setTasks] = useState([])
+  const [task,setTask]=useState("")
+  const [datetime,setDatetime]=useState("")
+  const [tasks,setTasks]=useState([])
 
-  // 🔊 Alarm sound file
-  const alarm = new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg")
+  useEffect(()=>{
+    const saved=localStorage.getItem("tasks")
+    if(saved) setTasks(JSON.parse(saved))
+  },[])
 
-  // Load saved tasks
-  useEffect(() => {
-    const saved = localStorage.getItem("tasks")
-    if (saved) setTasks(JSON.parse(saved))
-  }, [])
+  useEffect(()=>{
+    localStorage.setItem("tasks",JSON.stringify(tasks))
+  },[tasks])
 
-  // Save tasks
-  useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks))
-  }, [tasks])
+  useEffect(()=>{
+    const alarm=new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg")
 
-  // Notification permission
-  useEffect(() => {
-    if (Notification.permission !== "granted") {
-      Notification.requestPermission()
-    }
-  }, [])
+    const interval=setInterval(()=>{
+      const now=new Date()
 
-  // 🔔 5 MINUTE ALARM
-  useEffect(() => {
+      tasks.forEach((t,i)=>{
+        if(t.done) return
 
-    const interval = setInterval(() => {
+        const diff=new Date(t.datetime)-now
+        const fiveMin=5*60*1000
 
-      const now = new Date()
-
-      tasks.forEach((t, i) => {
-
-        if (t.done) return
-
-        const taskTime = new Date(t.datetime)
-        const diff = taskTime - now
-        const fiveMin = 5 * 60 * 1000
-
-        if (diff < fiveMin && diff > fiveMin - 60000 && !t.alarm5) {
-
+        if(diff<fiveMin && diff>fiveMin-60000 && !t.alert5){
           alarm.play()
-
-          new Notification("⏰ Task Reminder", {
-            body: `${t.text} in 5 minutes!`
-          })
-
-          tasks[i].alarm5 = true
+          alert(`Reminder: ${t.text} due soon!`)
+          tasks[i].alert5=true
           setTasks([...tasks])
         }
-
       })
+    },60000)
 
-    }, 60000)
+    return ()=>clearInterval(interval)
+  },[tasks])
 
-    return () => clearInterval(interval)
-
-  }, [tasks])
-
-  const addTask = () => {
-    if (!task || !datetime) return
-    setTasks([...tasks, { text: task, datetime, done: false, alarm5: false }])
+  const addTask=()=>{
+    if(!task||!datetime) return
+    setTasks([...tasks,{text:task,datetime,done:false}])
     setTask("")
     setDatetime("")
   }
 
-  const toggle = i => {
-    const newTasks = [...tasks]
-    newTasks[i].done = !newTasks[i].done
+  const toggle=(i)=>{
+    const newTasks=[...tasks]
+    newTasks[i].done=!newTasks[i].done
     setTasks(newTasks)
   }
 
-  // 📅 GROUP TASKS BY DATE
-  const grouped = {}
-  tasks.forEach(t => {
-    const d = new Date(t.datetime).toDateString()
-    if (!grouped[d]) grouped[d] = []
-    grouped[d].push(t)
-  })
+  const del=(i)=>{
+    setTasks(tasks.filter((_,x)=>x!==i))
+  }
 
-  return (
+  const today=new Date().toDateString()
+
+  const todayTasks=tasks.filter(t=>new Date(t.datetime).toDateString()===today)
+  const upcomingTasks=tasks.filter(t=>new Date(t.datetime).toDateString()!==today)
+
+  const completed=tasks.filter(t=>t.done).length
+  const pending=tasks.length-completed
+
+  const data=[
+    {name:"Done",value:completed},
+    {name:"Pending",value:pending}
+  ]
+
+  return(
     <div style={styles.page}>
-      <div style={styles.card}>
-        <h1>📅 Smart Todo</h1>
 
-        <input
-          style={styles.input}
-          placeholder="Task"
-          value={task}
-          onChange={e => setTask(e.target.value)}
-        />
+      <h1 style={styles.title}>✨ Smart Todo List</h1>
 
-        <input
-          type="datetime-local"
-          style={styles.input}
-          value={datetime}
-          onChange={e => setDatetime(e.target.value)}
-        />
+      <div style={styles.addBar}>
+        <input placeholder="Task" value={task}
+          onChange={e=>setTask(e.target.value)} style={styles.input}/>
 
-        <button style={styles.addBtn} onClick={addTask}>
-          Add Task
-        </button>
+        <input type="datetime-local" value={datetime}
+          onChange={e=>setDatetime(e.target.value)} style={styles.input}/>
 
-        <h3>📊 Calendar View</h3>
-
-        {Object.keys(grouped).map(date => (
-          <div key={date} style={styles.dateBox}>
-            <b>{date}</b>
-
-            {grouped[date].map((t, i) => (
-              <div key={i} style={styles.task}>
-                <input
-                  type="checkbox"
-                  checked={t.done}
-                  onChange={() => toggle(tasks.indexOf(t))}
-                />
-                {t.text} – {new Date(t.datetime).toLocaleTimeString()}
-              </div>
-            ))}
-          </div>
-        ))}
+        <button style={styles.addBtn} onClick={addTask}>Add</button>
       </div>
+
+      <div style={styles.container}>
+
+        <div style={styles.box1} className="card">
+          <h3>🔥 Today</h3>
+          {todayTasks.map((t,i)=>(
+            <div key={i} style={styles.task}>
+              <input type="checkbox"
+                checked={t.done}
+                onChange={()=>toggle(tasks.indexOf(t))}
+                style={styles.checkbox}/>
+              <span style={styles.text}>{t.text}</span>
+              <button style={styles.del}
+                onClick={()=>del(tasks.indexOf(t))}>❌</button>
+            </div>
+          ))}
+        </div>
+
+        <div style={styles.box2} className="card">
+          <h3>📌 Upcoming</h3>
+          {upcomingTasks.map((t,i)=>(
+            <div key={i} style={styles.task}>
+              <input type="checkbox"
+                checked={t.done}
+                onChange={()=>toggle(tasks.indexOf(t))}
+                style={styles.checkbox}/>
+              <span style={styles.text}>{t.text}</span>
+              <button style={styles.del}
+                onClick={()=>del(tasks.indexOf(t))}>❌</button>
+            </div>
+          ))}
+        </div>
+
+      </div>
+
+      {/* GRAPH */}
+      <div style={{marginTop:"40px",textAlign:"center"}}>
+        <h2 style={{color:"white"}}>📊 Progress</h2>
+
+        <PieChart width={250} height={250}>
+          <Pie data={data} cx="50%" cy="50%" outerRadius={80} dataKey="value">
+            <Cell fill="#4CAF50"/>
+            <Cell fill="#FF6B6B"/>
+          </Pie>
+          <Tooltip/>
+        </PieChart>
+
+        <p style={{color:"white"}}>
+          {completed} completed / {tasks.length} total
+        </p>
+      </div>
+
     </div>
   )
 }
 
 export default App
 
-const styles = {
-  page: {
-    minHeight: "100vh",
-    backgroundImage: `url(${bg})`,
-    backgroundSize: "cover",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
+const styles={
+  page:{
+    minHeight:"100vh",
+    width:"100vw",
+    backgroundImage:`url(${bg})`,
+    backgroundSize:"cover",
+    backgroundPosition:"center",
+    display:"flex",
+    flexDirection:"column",
+    alignItems:"center",
+    paddingTop:"30px"
   },
-  card: {
-    background: "rgba(255,255,255,0.9)",
-    padding: "30px",
-    borderRadius: "20px",
-    width: "360px",
+
+  title:{color:"white",fontSize:"32px",marginBottom:"20px"},
+
+  addBar:{
+    display:"flex",
+    gap:"10px",
+    padding:"12px",
+    borderRadius:"15px",
+    background:"linear-gradient(135deg,#6a11cb,#2575fc)",
+    marginBottom:"25px"
   },
-  input: {
-    width: "100%",
-    padding: "10px",
-    marginBottom: "10px",
+
+  input:{padding:"10px",borderRadius:"8px",border:"none"},
+
+  addBtn:{
+    background:"#2196F3",
+    color:"white",
+    border:"none",
+    padding:"10px 18px",
+    borderRadius:"8px",
+    cursor:"pointer"
   },
-  addBtn: {
-    width: "100%",
-    padding: "10px",
-    background: "#ff6b81",
-    color: "white",
-    border: "none",
+
+  container:{display:"flex",gap:"20px"},
+
+  box1:{
+    width:"230px",
+    padding:"15px",
+    borderRadius:"15px",
+    color:"white",
+    background:"linear-gradient(135deg,#ff7e5f,#feb47b)"
   },
-  dateBox: {
-    marginTop: "15px",
-    padding: "10px",
-    background: "#f0f0f0",
-    borderRadius: "8px",
+
+  box2:{
+    width:"230px",
+    padding:"15px",
+    borderRadius:"15px",
+    color:"white",
+    background:"linear-gradient(135deg,#6a11cb,#2575fc)"
   },
-  task: {
-    marginLeft: "10px",
-    marginTop: "5px",
-  }
+
+  task:{display:"flex",alignItems:"center",gap:"10px",marginTop:"10px"},
+  checkbox:{width:"24px",height:"24px"},
+  text:{fontSize:"18px",fontWeight:"600"},
+  del:{background:"transparent",border:"none",cursor:"pointer"}
 }
