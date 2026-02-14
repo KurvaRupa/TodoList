@@ -4,51 +4,90 @@ import bg from "./assets/bg.jpg"
 function App() {
 
   const [task, setTask] = useState("")
-  const [date, setDate] = useState("")
+  const [datetime, setDatetime] = useState("")
   const [tasks, setTasks] = useState([])
+
+  // 🔊 Alarm sound file
+  const alarm = new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg")
 
   // Load saved tasks
   useEffect(() => {
-    const saved = localStorage.getItem("myTasks")
+    const saved = localStorage.getItem("tasks")
     if (saved) setTasks(JSON.parse(saved))
   }, [])
 
   // Save tasks
   useEffect(() => {
-    localStorage.setItem("myTasks", JSON.stringify(tasks))
+    localStorage.setItem("tasks", JSON.stringify(tasks))
   }, [tasks])
 
-  // 🔔 Reminder check
+  // Notification permission
   useEffect(() => {
-    const today = new Date()
+    if (Notification.permission !== "granted") {
+      Notification.requestPermission()
+    }
+  }, [])
 
-    tasks.forEach(t => {
-      const taskDate = new Date(t.date)
-      const diff = (taskDate - today) / (1000 * 60 * 60 * 24)
+  // 🔔 5 MINUTE ALARM
+  useEffect(() => {
 
-      if (diff <= 1 && diff > 0 && !t.done) {
-        alert(`Reminder: "${t.text}" is due tomorrow!`)
-      }
-    })
+    const interval = setInterval(() => {
+
+      const now = new Date()
+
+      tasks.forEach((t, i) => {
+
+        if (t.done) return
+
+        const taskTime = new Date(t.datetime)
+        const diff = taskTime - now
+        const fiveMin = 5 * 60 * 1000
+
+        if (diff < fiveMin && diff > fiveMin - 60000 && !t.alarm5) {
+
+          alarm.play()
+
+          new Notification("⏰ Task Reminder", {
+            body: `${t.text} in 5 minutes!`
+          })
+
+          tasks[i].alarm5 = true
+          setTasks([...tasks])
+        }
+
+      })
+
+    }, 60000)
+
+    return () => clearInterval(interval)
+
   }, [tasks])
 
   const addTask = () => {
-    if (!task || !date) return
-    setTasks([...tasks, { text: task, date, done: false }])
+    if (!task || !datetime) return
+    setTasks([...tasks, { text: task, datetime, done: false, alarm5: false }])
     setTask("")
-    setDate("")
+    setDatetime("")
   }
 
-  const toggleTask = i => {
+  const toggle = i => {
     const newTasks = [...tasks]
     newTasks[i].done = !newTasks[i].done
     setTasks(newTasks)
   }
 
+  // 📅 GROUP TASKS BY DATE
+  const grouped = {}
+  tasks.forEach(t => {
+    const d = new Date(t.datetime).toDateString()
+    if (!grouped[d]) grouped[d] = []
+    grouped[d].push(t)
+  })
+
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h1>📅 Todo with Reminder</h1>
+        <h1>📅 Smart Todo</h1>
 
         <input
           style={styles.input}
@@ -58,29 +97,32 @@ function App() {
         />
 
         <input
-          type="date"
+          type="datetime-local"
           style={styles.input}
-          value={date}
-          onChange={e => setDate(e.target.value)}
+          value={datetime}
+          onChange={e => setDatetime(e.target.value)}
         />
 
         <button style={styles.addBtn} onClick={addTask}>
           Add Task
         </button>
 
-        <h3>Tasks</h3>
-        {tasks.map((t, i) => (
-          <div key={i} style={styles.task}>
-            <input
-              type="checkbox"
-              checked={t.done}
-              onChange={() => toggleTask(i)}
-            />
-            <span style={{
-              textDecoration: t.done ? "line-through" : "none"
-            }}>
-              {t.text} ({t.date})
-            </span>
+        <h3>📊 Calendar View</h3>
+
+        {Object.keys(grouped).map(date => (
+          <div key={date} style={styles.dateBox}>
+            <b>{date}</b>
+
+            {grouped[date].map((t, i) => (
+              <div key={i} style={styles.task}>
+                <input
+                  type="checkbox"
+                  checked={t.done}
+                  onChange={() => toggle(tasks.indexOf(t))}
+                />
+                {t.text} – {new Date(t.datetime).toLocaleTimeString()}
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -103,7 +145,7 @@ const styles = {
     background: "rgba(255,255,255,0.9)",
     padding: "30px",
     borderRadius: "20px",
-    width: "350px",
+    width: "360px",
   },
   input: {
     width: "100%",
@@ -111,13 +153,20 @@ const styles = {
     marginBottom: "10px",
   },
   addBtn: {
-    padding: "10px",
     width: "100%",
+    padding: "10px",
     background: "#ff6b81",
     color: "white",
     border: "none",
   },
-  task: {
-    marginTop: "10px",
+  dateBox: {
+    marginTop: "15px",
+    padding: "10px",
+    background: "#f0f0f0",
+    borderRadius: "8px",
   },
+  task: {
+    marginLeft: "10px",
+    marginTop: "5px",
+  }
 }
